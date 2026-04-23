@@ -1,0 +1,29 @@
+{
+  "name": "awsx",
+  "version": "1.0.0",
+  "description": "AWS at your fingertips - EC2, ECS, CloudWatch Logs in seconds",
+  "type": "module",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "scripts": {
+    "ec2": "node ec2.js",
+    "ecs": "node ecs.js",
+    "cloudwatch": "node cloudwatch.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shumatsumonobu/awsx.git"
+  },
+  "homepage": "https://github.com/shumatsumonobu/awsx#readme",
+  "bugs": {
+    "url": "https://github.com/shumatsumonobu/awsx/issues"
+  },
+  "keywords": ["aws", "ec2", "ecs", "cloudwatch", "ssm", "cli", "interactive"],
+  "author": "shumatsumonobu",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "inquirer": "^12.3.2"
+  }
+}

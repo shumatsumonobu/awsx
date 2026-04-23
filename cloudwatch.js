@@ -1,0 +1,82 @@
+import { execSync } from 'child_process';
+import inquirer from 'inquirer';
+import { PROFILE, REGION, ssoSignin } from './common.js';
+
+const getLogGroups = () => {
+  const cmd = `aws logs describe-log-groups --output json --profile ${PROFILE} --region ${REGION}`;
+  const { logGroups } = JSON.parse(execSync(cmd).toString());
+  return logGroups.map(g => g.logGroupName).sort();
+};
+
+const parseDate = (str) => {
+  const [date, time] = str.split(' ');
+  const [y, m, d] = date.split('-').map(Number);
+  const [h, min] = time.split(':').map(Number);
+  return new Date(y, m - 1, d, h, min).getTime();
+};
+
+const formatDate = (d) => {
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
+const fetchLogs = (logGroup, startTime, endTime, filterPattern, limit) => {
+  let cmd = `aws logs filter-log-events --log-group-name "${logGroup}" --start-time ${startTime} --end-time ${endTime} --limit ${limit} --region ${REGION} --profile ${PROFILE} --output json`;
+  if (filterPattern) cmd += ` --filter-pattern "${filterPattern}"`;
+
+  const data = JSON.parse(execSync(cmd, { maxBuffer: 50 * 1024 * 1024 }).toString());
+
+  if (data.events.length === 0) {
+    console.log('No logs found');
+    return;
+  }
+
+  console.log(`${data.events.length} logs:\n`);
+  for (const event of data.events) {
+    console.log(event.message);
+  }
+};
+
+const main = async () => {
+  try {
+    ssoSignin();
+
+    const allLogGroups = getLogGroups();
+    if (allLogGroups.length === 0) {
+      throw new Error('No log groups found');
+    }
+
+    const { filter } = await inquirer.prompt([
+      { type: 'input', name: 'filter', message: 'Filter log groups (empty for all):' },
+    ]);
+
+    const filtered = filter
+      ? allLogGroups.filter(g => g.toLowerCase().includes(filter.toLowerCase()))
+      : allLogGroups;
+
+    if (filtered.length === 0) {
+      throw new Error('No matching log groups');
+    }
+
+    const { logGroup } = await inquirer.prompt([
+      { type: 'list', name: 'logGroup', message: 'Log group:', choices: filtered, pageSize: Math.min(filtered.length, 15) },
+    ]);
+
+    const { from, to, filterPattern, limit } = await inquirer.prompt([
+      { type: 'input', name: 'from', message: 'From (empty for 1 hour ago):' },
+      { type: 'input', name: 'to', message: 'To (empty for now):' },
+      { type: 'input', name: 'filterPattern', message: 'Search keyword (empty for all):' },
+      { type: 'number', name: 'limit', message: 'Limit:', default: 50 },
+    ]);
+
+    const startTime = from ? parseDate(from) : Date.now() - 60 * 60 * 1000;
+    const endTime = to ? parseDate(to) : Date.now();
+
+    console.log(`\nFetching ${logGroup} (${from || formatDate(new Date(startTime))} ~ ${to || formatDate(new Date(endTime))})...\n`);
+    fetchLogs(logGroup, startTime, endTime, filterPattern, limit);
+  } catch (error) {
+    console.error('Error:', error.message);
+  }
+};
+
+main();

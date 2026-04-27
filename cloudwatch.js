@@ -1,6 +1,6 @@
 import { execSync } from 'child_process';
 import inquirer from 'inquirer';
-import { PROFILE, REGION, ssoSignin } from './common.js';
+import { PROFILE, REGION, LOG_GROUP_FILTER, LOG_GROUP_EXCLUDE, ssoSignin } from './common.js';
 
 const getLogGroups = () => {
   const cmd = `aws logs describe-log-groups --output json --profile ${PROFILE} --region ${REGION}`;
@@ -47,12 +47,19 @@ const main = async () => {
     }
 
     const { filter } = await inquirer.prompt([
-      { type: 'input', name: 'filter', message: 'Filter log groups (empty for all):' },
+      { type: 'input', name: 'filter', message: 'Filter log groups (empty for all):', default: LOG_GROUP_FILTER },
     ]);
 
-    const filtered = filter
-      ? allLogGroups.filter(g => g.toLowerCase().includes(filter.toLowerCase()))
+    const includePatterns = filter ? filter.split(',').map(p => p.trim().toLowerCase()) : [];
+    const excludePatterns = LOG_GROUP_EXCLUDE ? LOG_GROUP_EXCLUDE.split(',').map(p => p.trim().toLowerCase()) : [];
+
+    let filtered = includePatterns.length > 0
+      ? allLogGroups.filter(g => includePatterns.some(p => g.toLowerCase().includes(p)))
       : allLogGroups;
+
+    if (excludePatterns.length > 0) {
+      filtered = filtered.filter(g => !excludePatterns.some(p => g.toLowerCase().includes(p)));
+    }
 
     if (filtered.length === 0) {
       throw new Error('No matching log groups');
@@ -63,8 +70,8 @@ const main = async () => {
     ]);
 
     const { from, to, filterPattern, limit } = await inquirer.prompt([
-      { type: 'input', name: 'from', message: 'From (empty for 1 hour ago):' },
-      { type: 'input', name: 'to', message: 'To (empty for now):' },
+      { type: 'input', name: 'from', message: 'From [YYYY-MM-DD HH:MM] (empty for 1 hour ago):' },
+      { type: 'input', name: 'to', message: 'To [YYYY-MM-DD HH:MM] (empty for now):' },
       { type: 'input', name: 'filterPattern', message: 'Search keyword (empty for all):' },
       { type: 'number', name: 'limit', message: 'Limit:', default: 50 },
     ]);

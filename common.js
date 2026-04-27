@@ -5,6 +5,8 @@ dotenv.config();
 
 export const PROFILE = process.env.AWS_PROFILE || 'default';
 export const REGION = process.env.AWS_REGION || 'ap-northeast-1';
+export const LOG_GROUP_FILTER = process.env.LOG_GROUP_FILTER || '';
+export const LOG_GROUP_EXCLUDE = process.env.LOG_GROUP_EXCLUDE || '';
 
 export const ssoSignin = () => {
   try {

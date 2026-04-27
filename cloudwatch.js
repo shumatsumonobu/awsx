@@ -11,7 +11,7 @@ const getLogGroups = () => {
 const parseDate = (str) => {
   const [date, time] = str.split(' ');
   const [y, m, d] = date.split('-').map(Number);
-  const [h, min] = time.split(':').map(Number);
+  const [h, min] = time ? time.split(':').map(Number) : [0, 0];
   return new Date(y, m - 1, d, h, min).getTime();
 };
 
@@ -47,7 +47,7 @@ const main = async () => {
     }
 
     const { filter } = await inquirer.prompt([
-      { type: 'input', name: 'filter', message: 'Filter log groups (empty for all):', default: LOG_GROUP_FILTER },
+      { type: 'input', name: 'filter', message: 'Log group filter (empty=all):', default: LOG_GROUP_FILTER },
     ]);
 
     const includePatterns = filter ? filter.split(',').map(p => p.trim().toLowerCase()) : [];
@@ -70,16 +70,16 @@ const main = async () => {
     ]);
 
     const { from, to, filterPattern, limit } = await inquirer.prompt([
-      { type: 'input', name: 'from', message: 'From [YYYY-MM-DD HH:MM] (empty for 1 hour ago):' },
-      { type: 'input', name: 'to', message: 'To [YYYY-MM-DD HH:MM] (empty for now):' },
-      { type: 'input', name: 'filterPattern', message: 'Search keyword (empty for all):' },
-      { type: 'number', name: 'limit', message: 'Limit:', default: 50 },
+      { type: 'input', name: 'from', message: 'From (YYYY-MM-DD [HH:MM], empty=1h ago):' },
+      { type: 'input', name: 'to', message: 'To (YYYY-MM-DD [HH:MM], empty=now):' },
+      { type: 'input', name: 'filterPattern', message: 'Keyword (empty=all):' },
+      { type: 'number', name: 'limit', message: 'Limit (default=50):', default: 50 },
     ]);
 
     const startTime = from ? parseDate(from) : Date.now() - 60 * 60 * 1000;
     const endTime = to ? parseDate(to) : Date.now();
 
-    console.log(`\nFetching ${logGroup} (${from || formatDate(new Date(startTime))} ~ ${to || formatDate(new Date(endTime))})...\n`);
+    console.log(`\nFetching ${logGroup} (${formatDate(new Date(startTime))} ~ ${formatDate(new Date(endTime))})...\n`);
     fetchLogs(logGroup, startTime, endTime, filterPattern, limit);
   } catch (error) {
     console.error('Error:', error.message);

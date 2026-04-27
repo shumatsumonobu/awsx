@@ -1,6 +1,8 @@
 import { execSync } from 'child_process';
 import inquirer from 'inquirer';
-import { PROFILE, REGION, LOG_GROUP_FILTER, LOG_GROUP_EXCLUDE, ssoSignin } from './common.js';
+import { PROFILE, REGION, LOG_GROUP_FILTER, LOG_GROUP_EXCLUDE, ssoSignin, loadHistory, saveHistory } from './common.js';
+
+const HISTORY_FILE = 'cloudwatch-history.json';
 
 const getLogGroups = () => {
   const cmd = `aws logs describe-log-groups --output json --profile ${PROFILE} --region ${REGION}`;
@@ -46,28 +48,51 @@ const main = async () => {
       throw new Error('No log groups found');
     }
 
-    const { filter } = await inquirer.prompt([
-      { type: 'input', name: 'filter', message: 'Log group filter (empty=all):', default: LOG_GROUP_FILTER },
-    ]);
+    const historyKey = `${PROFILE}:${REGION}`;
+    const recents = (loadHistory(HISTORY_FILE)[historyKey] || [])
+      .filter(g => allLogGroups.includes(g));
 
-    const includePatterns = filter ? filter.split(',').map(p => p.trim().toLowerCase()) : [];
-    const excludePatterns = LOG_GROUP_EXCLUDE ? LOG_GROUP_EXCLUDE.split(',').map(p => p.trim().toLowerCase()) : [];
-
-    let filtered = includePatterns.length > 0
-      ? allLogGroups.filter(g => includePatterns.some(p => g.toLowerCase().includes(p)))
-      : allLogGroups;
-
-    if (excludePatterns.length > 0) {
-      filtered = filtered.filter(g => !excludePatterns.some(p => g.toLowerCase().includes(p)));
+    let logGroup;
+    if (recents.length > 0) {
+      const { picked } = await inquirer.prompt([{
+        type: 'list',
+        name: 'picked',
+        message: 'Quick pick (recent):',
+        choices: [
+          ...recents.map(g => ({ name: g, value: g })),
+          { name: '── show all log groups ──', value: null },
+        ],
+        pageSize: Math.min(recents.length + 1, 15),
+      }]);
+      logGroup = picked;
     }
 
-    if (filtered.length === 0) {
-      throw new Error('No matching log groups');
+    if (!logGroup) {
+      const { filter } = await inquirer.prompt([
+        { type: 'input', name: 'filter', message: 'Log group filter (empty=all):', default: LOG_GROUP_FILTER },
+      ]);
+
+      const includePatterns = filter ? filter.split(',').map(p => p.trim().toLowerCase()) : [];
+      const excludePatterns = LOG_GROUP_EXCLUDE ? LOG_GROUP_EXCLUDE.split(',').map(p => p.trim().toLowerCase()) : [];
+
+      let filtered = includePatterns.length > 0
+        ? allLogGroups.filter(g => includePatterns.some(p => g.toLowerCase().includes(p)))
+        : allLogGroups;
+
+      if (excludePatterns.length > 0) {
+        filtered = filtered.filter(g => !excludePatterns.some(p => g.toLowerCase().includes(p)));
+      }
+
+      if (filtered.length === 0) {
+        throw new Error('No matching log groups');
+      }
+
+      ({ logGroup } = await inquirer.prompt([
+        { type: 'list', name: 'logGroup', message: 'Log group:', choices: filtered, pageSize: Math.min(filtered.length, 15) },
+      ]));
     }
 
-    const { logGroup } = await inquirer.prompt([
-      { type: 'list', name: 'logGroup', message: 'Log group:', choices: filtered, pageSize: Math.min(filtered.length, 15) },
-    ]);
+    saveHistory(HISTORY_FILE, historyKey, logGroup);
 
     const { from, to, filterPattern, limit } = await inquirer.prompt([
       { type: 'input', name: 'from', message: 'From (YYYY-MM-DD [HH:MM], empty=1h ago):' },

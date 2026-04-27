@@ -14,6 +14,7 @@ Interactive AWS tools. No commands to memorize - just select and connect.
 - **CloudWatch Logs** - Filter and search logs with keywords
 - **AWS SSO Support** - Secure browser authentication
 - **SFTP Support** - Port forwarding for file transfer
+- **Quick Connect** - Recently-used instances and log groups offered first (per profile, last 10)
 
 ## Quick Start
 
@@ -21,7 +22,7 @@ Interactive AWS tools. No commands to memorize - just select and connect.
 git clone https://github.com/shumatsumonobu/awsx.git
 cd awsx
 npm install
-cp .env.example .env  # Edit profile name
+cp .env.example .env  # Edit AWS_PROFILE / AWS_REGION
 node ec2.js
 ```
 
@@ -45,19 +46,25 @@ node ec2.js
    
    | Field | Description |
    |-------|-------------|
-   | `sso_start_url` | AWS SSO portal URL |
-   | `sso_region` | Region where AWS SSO is configured |
+   | `sso_start_url` | Your AWS SSO portal URL |
+   | `sso_region` | Region where SSO is configured |
    | `sso_account_id` | AWS account ID to access |
-   | `region` | Default region for AWS CLI commands |
-   | `output` | Output format (json recommended) |
 
-2. Edit `.env` file
-   ```
-   AWS_PROFILE=your-profile
-   AWS_REGION=ap-northeast-1
-   ```
+2. Edit `.env` (see [`.env.example`](.env.example) for the full template)
+
+   **Required**
+   - `AWS_PROFILE` — profile name from `~/.aws/config`
+   - `AWS_REGION` — default region
+
+   **Optional (CloudWatch)**
+   - `LOG_GROUP_FILTER` — comma-separated patterns to pre-filter log groups
+   - `LOG_GROUP_EXCLUDE` — comma-separated patterns to exclude
 
 ## Usage
+
+> On subsequent runs, recently-used targets appear first as `Quick connect` (EC2) or `Quick pick` (CloudWatch). Select `── show all ──` to fall back to the full list.
+>
+> History: `~/.awsx/{ec2,cloudwatch}-history.json` (per profile, last 10 entries)
 
 ### EC2 Connection
 ```bash
@@ -91,7 +98,7 @@ SFTP client settings:
 | User | `ec2-user` |
 | Auth | Private key (.pem) |
 
-> Note: Port forwarding creates an SSH tunnel. The actual connection uses SSH authentication (ec2-user + .pem), not SSM (ssm-user).
+> Port forwarding creates an SSH tunnel. The actual connection uses SSH authentication (ec2-user + .pem), not SSM (ssm-user).
 
 ### ECS Connection
 ```bash
@@ -134,6 +141,7 @@ ERROR - 2026-04-23 10:45:12 - Database error
 ### EC2 Connection
 - `ec2:DescribeInstances`
 - `ssm:StartSession`
+- `ssm:StartSession` on `AWS-StartInteractiveCommand` (optional — enables auto UTF-8 locale; falls back to default session if not granted)
 
 ### EC2 SFTP (Port Forwarding)
 - `ssm:StartSession` on `AWS-StartPortForwardingSession`
@@ -159,6 +167,7 @@ ERROR - 2026-04-23 10:45:12 - Database error
 | Instance not found | Check if instance is running in AWS Console |
 | Permission error | Verify IAM role permissions |
 | Port forward error | Add `AWS-StartPortForwardingSession` permission to IAM |
+| Garbled Japanese in EC2 shell | Allow `AWS-StartInteractiveCommand` for auto UTF-8 locale; otherwise fallback copies the export command to clipboard for manual paste |
 
 ## License
 

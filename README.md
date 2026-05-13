@@ -169,6 +169,7 @@ ERROR - 2026-04-23 10:45:12 - Database error
 | `AccessDeniedException` on `ssm:StartSession` for an instance | Your IAM role needs `ssm:StartSession` on the target EC2 instance ARN — ask admin to grant access to the instances you need |
 | Port forward error | Add `AWS-StartPortForwardingSession` permission to IAM |
 | Garbled Japanese in EC2 shell | Allow `AWS-StartInteractiveCommand` for auto UTF-8 locale; otherwise fallback copies the export command to clipboard for manual paste |
+| Local terminal broken after EC2 session (garbled input, doubled chars) | Exit the remote shell with `exit` (or Ctrl+D), not Ctrl+C. Ctrl+C kills session-manager-plugin before it can restore terminal mode. If already stuck, close and reopen the terminal window |
 
 ## License
 

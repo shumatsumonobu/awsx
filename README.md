@@ -140,7 +140,7 @@ ERROR - 2026-04-23 10:45:12 - Database error
 
 ### EC2 Connection
 - `ec2:DescribeInstances`
-- `ssm:StartSession`
+- `ssm:StartSession` on target EC2 instance ARNs (e.g. `arn:aws:ec2:*:*:instance/*` or per-instance)
 - `ssm:StartSession` on `AWS-StartInteractiveCommand` (optional — enables auto UTF-8 locale; falls back to default session if not granted)
 
 ### EC2 SFTP (Port Forwarding)
@@ -166,6 +166,7 @@ ERROR - 2026-04-23 10:45:12 - Database error
 | SSO login error | Run `aws sso login --profile <your-profile>` manually |
 | Instance not found | Check if instance is running in AWS Console |
 | Permission error | Verify IAM role permissions |
+| `AccessDeniedException` on `ssm:StartSession` for an instance | Your IAM role needs `ssm:StartSession` on the target EC2 instance ARN — ask admin to grant access to the instances you need |
 | Port forward error | Add `AWS-StartPortForwardingSession` permission to IAM |
 | Garbled Japanese in EC2 shell | Allow `AWS-StartInteractiveCommand` for auto UTF-8 locale; otherwise fallback copies the export command to clipboard for manual paste |
 
